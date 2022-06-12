@@ -1,21 +1,16 @@
-import java.io.File;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.Properties;
 import javax.activation.DataHandler;
 import javax.activation.DataSource;
 import javax.activation.FileDataSource;
-import javax.mail.BodyPart;
-import javax.mail.Message;
-import javax.mail.MessagingException;
-import javax.mail.Multipart;
-import javax.mail.PasswordAuthentication;
-import javax.mail.Session;
-import javax.mail.Transport;
+import javax.mail.*;
 import javax.mail.internet.InternetAddress;
 import javax.mail.internet.MimeBodyPart;
 import javax.mail.internet.MimeMessage;
 import javax.mail.internet.MimeMultipart;
+import java.io.File;
+import java.nio.file.Paths;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.Properties;
 
 
 public class SendReportByEmail {
@@ -25,49 +20,60 @@ public class SendReportByEmail {
 	String sentTo = "sentTo@Gmail.com";
 	static String FinalReport = "";
 
-	public SendReportByEmail(String ReportDirectory) throws Exception {
-		if (new File(ReportDirectory).exists()) {
+	public SendReportByEmail(String sentTo, String ReportDirectory, String ReportDirectory2) throws Exception {
 
-			Properties props = new Properties();
-			props.put("mail.smtp.host", "smtp.gmail.com");
-			props.put("mail.smtp.port", "587");
-			props.put("mail.smtp.auth", "true");
-			props.put("mail.smtp.starttls.enable", "true");
+		Properties props = new Properties();
+		props.put("mail.smtp.host", "smtp.gmail.com");
+		props.put("mail.smtp.port", "587");
+		props.put("mail.smtp.auth", "true");
+		props.put("mail.smtp.ssl.protocols", "TLSv1.2");
+		props.put("mail.smtp.starttls.enable", "true");
 
-			Session session = Session.getInstance(props, new javax.mail.Authenticator() {
-				protected PasswordAuthentication getPasswordAuthentication() {
-					return new PasswordAuthentication(EmailUsername, PasswordUsername);
-				}
-			});
-
-			try {
-				Message message = new MimeMessage(session);
-				message.setFrom(new InternetAddress(EmailUsername));
-				message.setRecipients(Message.RecipientType.TO, InternetAddress.parse(sentTo));
-				message.setSubject("The Qa test report with tag");
-
-				/////// ADD ATTACHMENT
-				BodyPart messageBodyPart = new MimeBodyPart();
-				messageBodyPart.setText("Here's the file");
-				Multipart multipart = new MimeMultipart();
-				multipart.addBodyPart(messageBodyPart);
-
-				messageBodyPart = new MimeBodyPart();
-				DataSource source = new FileDataSource(ReportDirectory);
-				messageBodyPart.setDataHandler(new DataHandler(source));
-				messageBodyPart.setFileName(ReportDirectory);
-				multipart.addBodyPart(messageBodyPart);
-				message.setContent(multipart);
-
-				Transport.send(message);
-
-				System.out.println("Message Sent!");
-
-			} catch (MessagingException mex) {
-				mex.printStackTrace();
+		Session session = Session.getInstance(props, new javax.mail.Authenticator() {
+			protected PasswordAuthentication getPasswordAuthentication() {
+				return new PasswordAuthentication(EmailUsername, PasswordUsername);
 			}
-		} else
-			System.out.println("    The Report didnt Created or found in the " + ReportDirectory);
+		});
+
+		try {
+			Message message = new MimeMessage(session);
+			message.setFrom(new InternetAddress(EmailUsername));
+			message.setRecipients(Message.RecipientType.TO, InternetAddress.parse(sentTo));
+			message.setSubject("The DB Compare report");
+			// message.setFileName("Report.html");
+
+			/////// ADD ATTACHMENT
+			BodyPart messageBodyPart = new MimeBodyPart();
+			BodyPart messageBodyPart2 = new MimeBodyPart();
+
+			messageBodyPart.setText("Here's the file");
+//			message.setText(FinalReport);
+			Multipart multipart = new MimeMultipart();
+			multipart.addBodyPart(messageBodyPart);
+
+			messageBodyPart = new MimeBodyPart();
+			message.setContent(addAttachment(messageBodyPart, multipart, ReportDirectory));
+			message.setContent(addAttachment(messageBodyPart2, multipart, ReportDirectory2));
+
+			Transport.send(message);
+
+			System.out.println("Message Sent!");
+
+		} catch (MessagingException mex) {
+			mex.printStackTrace();
+		}
+	}
+
+	private static Multipart addAttachment(BodyPart messageBodyPart, Multipart multipart, String filename)
+			throws Exception {
+		if (new File(filename).exists()) {
+			DataSource source = new FileDataSource(filename);
+			messageBodyPart.setDataHandler(new DataHandler(source));
+			messageBodyPart.setFileName(Paths.get(filename).getFileName().toString());
+			multipart.addBodyPart(messageBodyPart);
+		}
+		return multipart;
+
 	}
 
 	public String CurrentDateTime() {
