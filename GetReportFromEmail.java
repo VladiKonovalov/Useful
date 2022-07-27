@@ -9,7 +9,6 @@ public class GetReportFromEmail {
 
 	static String EmailUsername = "MYMAIL@gmail.com";
 	static String PasswordUsername = "MYPASSWORD";
-	static String FinalReport = "";
 
 	public GetReportFromEmail() throws Exception {
 		try {
@@ -61,7 +60,7 @@ public class GetReportFromEmail {
 	}
 
 
-	public static void doit() throws MessagingException, IOException {
+	public static void readMyEmail(boolean deleteItAfter) throws MessagingException, IOException {
 		Folder folder = null;
 		Store store = null;
 		try {
@@ -86,6 +85,7 @@ public class GetReportFromEmail {
 			System.out.println("No of Messages : " + folder.getMessageCount());
 			System.out.println("No of Unread Messages : " + folder.getUnreadMessageCount());
 			for (int i=0; i < messages.length; ++i) {
+				System.out.println("****************************************");
 				System.out.println("MESSAGE #" + (i + 1) + ":");
 				Message msg = messages[i];
         /*
@@ -103,20 +103,71 @@ public class GetReportFromEmail {
 					from = msg.getFrom()[0].toString();
 				}
 				String subject = msg.getSubject();
-				System.out.println("Saving ... " + subject +" " + from);
+				System.out.println("from: " +  from);
+				System.out.println("subject: " + subject );
+				int MessageNumber=	msg.getMessageNumber();
+
+				System.out.println(MessageNumber);
+				//System.out.println(msg.getContentType());
+				Object content=msg.getContent();
+				String result = "";
+				if (msg.isMimeType("text/plain")) {
+					result = msg.getContent().toString();
+				} else if (msg.isMimeType("multipart/*")) {
+					MimeMultipart mimeMultipart = (MimeMultipart) msg.getContent();
+					result = getTextFromMimeMultipart(mimeMultipart);
+
+				}
+				System.out.println(result);
+				EmailContainURL(result);
+				msg.setFlag(Flags.Flag.SEEN,true);
+ if (deleteItAfter==true){
+				msg.setFlag(FLAGS.Flag.DELETED, true);}
 				// you may want to replace the spaces with "_"
 				// the TEMP directory is used to store the files
-				String filename = "c:/temp/" +  subject;
 			//	saveParts(msg.getContent(), filename);
-				msg.setFlag(Flags.Flag.SEEN,true);
 				// to delete the message
 				// msg.setFlag(Flags.Flag.DELETED, true);
 			}
-		}
-		finally {
+		} catch (Exception e) {
+			throw new RuntimeException(e);
+		} finally {
 			if (folder != null) { folder.close(true); }
 			if (store != null) { store.close(); }
 		}
+	}
+
+		private static String getTextFromMimeMultipart(
+				MimeMultipart mimeMultipart) throws Exception{
+			String result = "";
+			int count = mimeMultipart.getCount();
+			for (int i = 0; i < count; i++) {
+				BodyPart bodyPart = mimeMultipart.getBodyPart(i);
+				if (bodyPart.isMimeType("text/plain")) {
+					result = result + "\n" + bodyPart.getContent();
+					break; // without break same text appears twice in my tests
+				} else if (bodyPart.isMimeType("text/html")) {
+					String html = (String) bodyPart.getContent();
+					result = result + "\n" + html;
+				} else if (bodyPart.getContent() instanceof MimeMultipart){
+					result = result + getTextFromMimeMultipart((MimeMultipart)bodyPart.getContent());
+				}
+			}
+			return result;
+		}
+
+	public static void EmailContainURL(String result) {
+		String URL_REGEX = "\\b((https?|ftp)://|(www|ftp)\\.)?[a-z0-9-]+(\\.[a-z0-9-]+)+([/?].*)?\\b";
+		Pattern p = Pattern.compile(URL_REGEX);
+		Matcher m = p.matcher(result);
+		if (m.find()) {
+			System.out.println("The Email contain an URL");
+		}
+		else{
+			System.out.println("NO URL was found");
+
+		}
+
 	}
 
 
